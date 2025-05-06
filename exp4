@@ -1,0 +1,47 @@
+import numpy as np
+from scipy.special import erfc
+import matplotlib.pyplot as plt
+
+# Parameters
+N = int(1e6)  # Number of bits
+Eb_N0_dB = np.arange(-3, 35, 1)  # Eb/N0 range in dB
+
+# Transmitter
+ip = np.random.rand(N) > 0.5  # Generate 0s and 1s
+s = 2 * ip - 1  # BPSK modulation: 0 -> -1, 1 -> +1
+
+# BER arrays
+nErr = np.zeros(len(Eb_N0_dB))
+
+# Simulation
+for i, Eb_N0 in enumerate(Eb_N0_dB):
+    # Noise and Rayleigh fading
+    n = (1/np.sqrt(2)) * (np.random.randn(N) + 1j*np.random.randn(N))  # AWGN noise
+    h = (1/np.sqrt(2)) * (np.random.randn(N) + 1j*np.random.randn(N))  # Rayleigh fading
+
+    # Channel with fading and noise
+    y = h * s + (10**(-Eb_N0/10))**0.5 * n
+
+    # Receiver - Equalization and hard decision
+    y_equalized = y / h
+    ipHat = (np.real(y_equalized) > 0).astype(int)
+
+    # Count errors
+    nErr[i] = np.sum(ip != ipHat)
+
+# BER Calculation
+simBer = nErr / N
+theoryBer_AWGN = 0.5 * erfc(np.sqrt(10**(Eb_N0_dB / 10)))
+theoryBer_Rayleigh = 0.5 * (1 - np.sqrt(10**(Eb_N0_dB / 10) / (1 + 10**(Eb_N0_dB / 10))))
+
+# Plotting
+plt.semilogy(Eb_N0_dB, theoryBer_AWGN, 'cd-', linewidth=2)  # AWGN theory
+plt.semilogy(Eb_N0_dB, theoryBer_Rayleigh, 'bp-', linewidth=2)  # Rayleigh theory
+plt.semilogy(Eb_N0_dB, simBer, 'mx-', linewidth=2)  # Simulated Rayleigh
+plt.axis([-3, 35, 1e-5, 0.5])
+plt.grid(True, which='both')
+plt.legend(['AWGN - Theory', 'Rayleigh - Theory', 'Rayleigh - Simulated'])
+plt.xlabel('Eb/N0 (dB)')
+plt.ylabel('Bit Error Rate (BER)')
+plt.title('BER for BPSK Modulation in Rayleigh Fading Channel')
+plt.show()
